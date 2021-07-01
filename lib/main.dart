@@ -33,19 +33,12 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-
-
-  @override
-  void initState() {
-    // TODO: implement initState
-    super.initState();
-
-  }
-
-
+  final textController = TextEditingController();
 
   @override
   Widget build(BuildContext context) {
+    CollectionReference training =
+        FirebaseFirestore.instance.collection('training');
     return Scaffold(
       appBar: AppBar(
         title: Text(
@@ -53,15 +46,28 @@ class _MyHomePageState extends State<MyHomePage> {
           textAlign: TextAlign.center,
         ),
       ),
-      body: Container(
+      body: Center(
         child: StreamBuilder(
-          stream: FirebaseFirestore.instance.collection('training').snapshots(),
-          builder: (context, AsyncSnapshot <QuerySnapshot> snapshot) {
+          stream: training.orderBy('menu').snapshots(),
+          builder: (context, AsyncSnapshot<QuerySnapshot> snapshot) {
+            if (!snapshot.hasData) {
+              return Center(
+                child: Text('Loading'),
+              );
+            }
             return ListView(
-              children: snapshot.data.docs.map((training){
-                return Center(
+              children: snapshot.data.docs.map((training) {
+                return Container(
+                  decoration: BoxDecoration(
+                      border: Border(
+                          bottom: BorderSide(
+                    color: Colors.black38,
+                  ))),
                   child: ListTile(
                     title: Text(training['menu']),
+                    onLongPress: () {
+                      training.reference.delete();
+                    },
                   ),
                 );
               }).toList(),
@@ -71,11 +77,47 @@ class _MyHomePageState extends State<MyHomePage> {
       ),
       floatingActionButton: FloatingActionButton(
         child: Icon(Icons.add),
-        onPressed: () async {
-          await FirebaseFirestore.instance
-              .collection('training')
-              .doc()
-              .set({'menu': 'running'});
+        onPressed: () {
+          showDialog(
+              context: context,
+              builder: (context) {
+                return SimpleDialog(
+                  title: Text(
+                    'メニューを追加',
+                    textAlign: TextAlign.center,
+                  ),
+                  children: [
+                    Container(
+                      padding: EdgeInsets.all(16),
+                      child: TextField(
+                        controller: textController,
+                      ),
+                    ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.all(8.0),
+                          child: ElevatedButton(
+                              onPressed: () {
+                                training.add({'menu': textController.text});
+                                Navigator.pop(context);
+                              },
+                              child: Text('はい')),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.all(8.0),
+                          child: ElevatedButton(
+                              onPressed: () {
+                                Navigator.pop(context);
+                              },
+                              child: Text('いいえ')),
+                        ),
+                      ],
+                    )
+                  ],
+                );
+              });
         },
       ),
     );
